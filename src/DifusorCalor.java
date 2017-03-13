@@ -5,6 +5,7 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Observable;
+import java.util.concurrent.*;
 
 public class DifusorCalor extends Observable {
 
@@ -13,6 +14,7 @@ public class DifusorCalor extends Observable {
 	double coeficienteDifusionY;
 	Malla mallaInicial, nuevaMalla;
 	List<PuntoCalor> focosCalor;
+	CompletionService<FragmentoMalla> pool_difusion = new ExecutorCompletionService<>(Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()));
 
 	public DifusorCalor(double cfX, double cfY, Malla malla, List<PuntoCalor> focosCalor) {
 		secuencia = new ArrayList<>();
@@ -31,22 +33,19 @@ public class DifusorCalor extends Observable {
 		int dimensionY = mallaInicial.getDimensionY();
 
 		nuevaMalla = new Malla(dimensionX, dimensionY);
-		inicializarBordes(nuevaMalla);
+		nuevaMalla.malla.clear();
 
-		for (int i = 1; i < dimensionX - 1; i++) {
-			for (int j = 1; j < dimensionY - 1; j++) {
-				PuntoCalor punto = new PuntoCalor(i, j, 0);
-				if (esFocoCalor(punto)) {
-					nuevaMalla.setValor(i, j, punto.getTemperatura());
-				} else {
-					double temperatura = mallaInicial.getValor(i, j) +
-							coeficienteDifusionX * ((mallaInicial.getValor(i - 1, j) + mallaInicial.getValor(i + 1, j)) - (2 * mallaInicial.getValor(i, j))) +
-							coeficienteDifusionY * ((mallaInicial.getValor(i, j - 1) + mallaInicial.getValor(i, j + 1)) - (2 * mallaInicial.getValor(i, j)));
-
-					nuevaMalla.setValor(i, j, temperatura);
-				}
+		for (FragmentoMalla fm : mallaInicial.malla) {
+			pool_difusion.submit(new difusorFragmento(fm));
+		}
+		for (FragmentoMalla fm : mallaInicial.malla) {
+			try {
+				nuevaMalla.malla.add(pool_difusion.take().get());
+			} catch (InterruptedException | ExecutionException e) {
+				e.printStackTrace();
 			}
 		}
+		inicializarBordes(nuevaMalla);
 	}
 
 	private void inicializarBordes(Malla malla) {
@@ -90,4 +89,39 @@ public class DifusorCalor extends Observable {
 
 		return mallaInicial;
 	}
+
+	private class difusorFragmento implements Callable<FragmentoMalla> {
+
+		FragmentoMalla fm;
+
+		public difusorFragmento(FragmentoMalla fm) {
+			this.fm = fm;
+		}
+
+		@Override
+		public FragmentoMalla call() throws Exception {
+			FragmentoMalla newFm = new FragmentoMalla(fm.desde, fm.hasta, fm.alto);
+
+			for (int x = 0; x < fm.fragmento.length; x++) {
+				for (int y = 1; y < fm.fragmento[x].length - 1; y++) {
+					PuntoCalor punto = new PuntoCalor(x + fm.desde, y, 0);
+					if (esFocoCalor(punto)) {
+						newFm.fragmento[x][y] = punto.getTemperatura();
+					} else {
+						double temperatura = mallaInicial.getValor(x + fm.desde, y) +
+								coeficienteDifusionX * ((mallaInicial.getValor(x + fm.desde - 1, y) +
+										mallaInicial.getValor(x + fm.desde + 1, y)) -
+										(2 * mallaInicial.getValor(x + fm.desde, y))) +
+								coeficienteDifusionY * ((mallaInicial.getValor(x + fm.desde, y - 1) +
+										mallaInicial.getValor(x + fm.desde, y + 1)) -
+										(2 * mallaInicial.getValor(x + fm.desde, y)));
+
+						newFm.fragmento[x][y] = temperatura;
+					}
+				}
+			}
+			return newFm;
+		}
+	}
+
 }

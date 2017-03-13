@@ -36,6 +36,11 @@ public class Principal extends JFrame implements ActionListener {
 
 	}
 
+	public static void main(String[] args) {
+		new Principal();
+
+	}
+
 	private Container crearPanelVentana() {
 		JPanel panel = new JPanel(new BorderLayout(0, 10));
 		JButton iniciar = new JButton("Start");
@@ -57,21 +62,6 @@ public class Principal extends JFrame implements ActionListener {
 		}
 
 		difusor = new DifusorCalor(coeficienteDifusionCalorX, coeficienteDifusionCalorY, mallaInicial, focosCalor);
-	}
-
-	private void visualizarMalla(Malla nuevaMalla) {
-		for (int i = 0; i < DIMENSIONX; i++) {
-			for (int j = 0; j < DIMENSIONY; j++) {
-				System.out.print(String.format("%5.2f", nuevaMalla.getValor(i, j)) + " ");
-			}
-			System.out.println();
-		}
-		System.out.println();
-	}
-
-	public static void main(String[] args) {
-		new Principal();
-
 	}
 
 	@Override

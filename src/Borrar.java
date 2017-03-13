@@ -17,7 +17,6 @@ public class Borrar {
 				System.out.println(i + " " + String.format("%x", color));
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
